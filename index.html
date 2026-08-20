@@ -698,6 +698,158 @@ function renderPracticeTab(d, count) {
     </div>`;
 }
 
+// ── QUIZ ENGINE ────────────────────────────────────────────────────────────
+function renderQuiz() {
+  const { questions, current, answers } = state;
+  const q = questions[current];
+  const ans = answers[current];
+
+  // Sidebar dots
+  const dots = questions.map((_, i) => {
+    let cls = i === current ? 'active' : '';
+    if (answers[i].submitted) cls = answers[i].correct ? 'correct' : 'wrong';
+    return `<div class="q-dot ${cls}" onclick="jumpTo(${i})">${i+1}</div>`;
+  }).join('');
+
+  const correct = answers.filter(a => a.submitted && a.correct).length;
+  const wrong   = answers.filter(a => a.submitted && !a.correct).length;
+  const remain  = questions.length - answers.filter(a => a.submitted).length;
+  const pct     = Math.round((answers.filter(a=>a.submitted).length / questions.length) * 100);
+
+  // Options HTML
+  let optCls = (i) => {
+    if (!ans.submitted) return ans.selected.includes(i) ? 'selected' : '';
+    if (q.ans.includes(i)) return 'correct-ans';
+    if (ans.selected.includes(i) && !q.ans.includes(i)) return 'wrong-ans';
+    return '';
+  };
+
+  const opts = q.opts.map((text, i) => `
+    <button class="opt ${optCls(i)}" onclick="selectOption(${i})" ${ans.submitted ? 'disabled' : ''}>
+      <span class="opt-letter">${String.fromCharCode(65+i)}</span>
+      <span class="opt-text">${text}</span>
+    </button>`).join('');
+
+  // Feedback
+  let feedback = '';
+  if (ans.submitted) {
+    const correct_ans = q.ans.map(a => String.fromCharCode(65+a)).join(', ');
+    feedback = `<div class="feedback-box ${ans.correct ? 'correct' : 'wrong'}">
+      <strong>${ans.correct ? '✓ Correct' : `✗ Correct answer: ${correct_ans}`}</strong><br>${q.exp}
+    </div>`;
+  }
+
+  // Action buttons
+  const canSubmit = ans.selected.length > 0 && !ans.submitted;
+  const isLast    = current === questions.length - 1;
+  const actions = ans.submitted
+    ? `<button class="btn btn-primary" onclick="${isLast ? 'showResults()' : 'nextQuestion()'}">${isLast ? 'View Results' : 'Next →'}</button>
+       ${current > 0 ? '<button class="btn btn-ghost" onclick="prevQuestion()">← Prev</button>' : ''}`
+    : `<button class="btn btn-primary" onclick="submitAnswer()" ${canSubmit ? '' : 'disabled'}>Submit</button>
+       ${current > 0 ? '<button class="btn btn-ghost" onclick="prevQuestion()">← Prev</button>' : ''}`;
+
+  const domainLabel = state.domainId
+    ? `Domain ${state.domainId} Practice`
+    : 'Full Mock Exam';
+
+  setScreen(`
+    <div class="header">
+      <div class="header-left">
+        <button class="header-back" onclick="confirmExit()">← Exit</button>
+        <span class="badge">GPSOE</span>
+        <h1>${domainLabel}</h1>
+      </div>
+      <span style="font-size:13px;color:var(--text-muted)">${current+1} / ${questions.length}</span>
+    </div>
+    <div class="quiz-layout">
+      <div class="quiz-sidebar">
+        <div class="sidebar-header">
+          <div class="progress-label"><span>Progress</span><span>${pct}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="stats-row">
+            <div class="stat correct"><div class="num">${correct}</div><div class="lbl">Correct</div></div>
+            <div class="stat wrong"><div class="num">${wrong}</div><div class="lbl">Wrong</div></div>
+            <div class="stat remain"><div class="num">${remain}</div><div class="lbl">Left</div></div>
+          </div>
+        </div>
+        <div class="q-grid">${dots}</div>
+      </div>
+      <div class="quiz-main">
+        <div class="q-meta">
+          <span class="q-num">Q${current+1}</span>
+          ${q.multi ? '<span class="multi-tag">Choose 2</span>' : ''}
+        </div>
+        <div class="q-text">${q.q}</div>
+        <div class="options">${opts}</div>
+        ${feedback}
+        <div class="quiz-actions">${actions}</div>
+      </div>
+    </div>`);
+}
+
+function selectOption(i) {
+  const { questions, current, answers } = state;
+  if (answers[current].submitted) return;
+  const q = questions[current];
+  const sel = answers[current].selected;
+
+  if (q.multi) {
+    // Toggle multi-select (max 2)
+    const idx = sel.indexOf(i);
+    if (idx === -1 && sel.length < q.ans.length) sel.push(i);
+    else if (idx !== -1) sel.splice(idx, 1);
+  } else {
+    answers[current].selected = [i];
+  }
+  renderQuiz();
+}
+
+function submitAnswer() {
+  const { questions, current, answers } = state;
+  const q   = questions[current];
+  const ans = answers[current];
+  if (!ans.selected.length || ans.submitted) return;
+
+  ans.submitted = true;
+  const sortedSel = [...ans.selected].sort();
+  const sortedAns = [...q.ans].sort();
+  ans.correct = sortedSel.length === sortedAns.length &&
+    sortedSel.every((v, i) => v === sortedAns[i]);
+  if (ans.correct) state.score++;
+  renderQuiz();
+}
+
+function nextQuestion() {
+  if (state.current < state.questions.length - 1) {
+    state.current++;
+    renderQuiz();
+  }
+}
+
+function prevQuestion() {
+  if (state.current > 0) {
+    state.current--;
+    renderQuiz();
+  }
+}
+
+function jumpTo(i) {
+  state.current = i;
+  renderQuiz();
+}
+
+function confirmExit() {
+  if (confirm('Exit quiz? Your progress will be lost.')) {
+    state.domainId
+      ? navigate('domain', { domainId: state.domainId, view: 'practice' })
+      : navigate('home');
+  }
+}
+
+function showResults() {
+  navigate('results');
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 render();
 </script>
