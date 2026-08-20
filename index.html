@@ -690,11 +690,19 @@ function renderStudy() {
 
 function renderPracticeTab(d, count) {
   return `
-    <div style="text-align:center;padding:48px 0;color:var(--text-muted)">
-      <p style="font-size:17px;margin-bottom:16px">${count} questions in this domain</p>
-      <button class="btn btn-primary" onclick="startQuiz(${d.id})" style="padding:14px 28px;font-size:15px">
+    <div style="text-align:center;padding:40px 0">
+      <h3 style="font-size:20px;margin-bottom:10px">${count} Questions</h3>
+      <p style="color:var(--text-muted);margin-bottom:28px;font-size:14px">
+        Questions are shuffled each session. Answer each question, then see the explanation immediately.
+      </p>
+      <button class="btn btn-primary" onclick="startQuiz(${d.id})" style="padding:14px 32px;font-size:15px">
         Start Practice →
       </button>
+      <div style="margin-top:20px">
+        <button class="btn btn-ghost" onclick="navigate('domain',{domainId:${d.id},view:'study'})" style="font-size:13px">
+          ← Review Lesson First
+        </button>
+      </div>
     </div>`;
 }
 
@@ -848,6 +856,46 @@ function confirmExit() {
 
 function showResults() {
   navigate('results');
+}
+
+// ── RESULTS SCREEN ─────────────────────────────────────────────────────────
+function renderResults() {
+  const { questions, answers, score, domainId } = state;
+  const total   = questions.length;
+  const wrong   = answers.filter(a => a.submitted && !a.correct).length;
+  const skipped = answers.filter(a => !a.submitted).length;
+  const pct     = Math.round((score / total) * 100);
+  const pass    = pct >= 70;
+  const label   = domainId ? DOMAINS.find(d=>d.id===domainId).name : 'Full Mock Exam';
+
+  setScreen(`
+    <div class="header">
+      <div class="header-left">
+        <span class="badge">GPSOE</span>
+        <h1>Results</h1>
+      </div>
+    </div>
+    <div class="results-body">
+      <h2>${label}</h2>
+      <p class="sub">${total} questions · ${pass ? 'Great work!' : 'Keep studying — you\'ve got this.'}</p>
+      <div class="score-circle ${pass?'pass':'fail'}">
+        <div class="score-pct">${pct}%</div>
+        <div class="score-lbl">Score</div>
+      </div>
+      <div class="verdict ${pass?'pass':'fail'}">${pass ? '✓ Pass (≥70%)' : '✗ Below passing (70%)'}</div>
+      <div class="results-grid">
+        <div class="res-card c"><div class="big">${score}</div><div class="sml">Correct</div></div>
+        <div class="res-card w"><div class="big">${wrong}</div><div class="sml">Wrong</div></div>
+        <div class="res-card"><div class="big" style="color:var(--yellow)">${skipped}</div><div class="sml">Skipped</div></div>
+      </div>
+      <div class="results-actions">
+        <button class="btn btn-primary" onclick="startQuiz(${domainId})">Retry →</button>
+        ${domainId
+          ? `<button class="btn btn-ghost" onclick="navigate('domain',{domainId:${domainId},view:'study'})">← Review Lesson</button>`
+          : ''}
+        <button class="btn btn-ghost" onclick="navigate('home')">Home</button>
+      </div>
+    </div>`);
 }
 
 // ── INIT ───────────────────────────────────────────────────────────────────
