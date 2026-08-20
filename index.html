@@ -622,6 +622,82 @@ function startQuiz(domainId) {
   });
 }
 
+// ── DOMAIN SCREEN ──────────────────────────────────────────────────────────
+function renderDomain() {
+  const d = DOMAINS.find(x => x.id === state.domainId);
+  const count = ALL_QUESTIONS.filter(q => q.domain === d.id).length;
+  const studyContent = state.view === 'study' ? renderStudy() : renderPracticeTab(d, count);
+
+  setScreen(`
+    <div class="header">
+      <div class="header-left">
+        <button class="header-back" onclick="navigate('home')">← Home</button>
+        <span class="badge">Domain ${d.id}</span>
+        <h1>${d.name}</h1>
+      </div>
+    </div>
+    <div class="domain-body">
+      <div class="tabs">
+        <button class="tab-btn ${state.view==='study'?'active':''}"
+          onclick="navigate('domain',{domainId:state.domainId,view:'study'})">📖 Study</button>
+        <button class="tab-btn ${state.view==='practice'?'active':''}"
+          onclick="navigate('domain',{domainId:state.domainId,view:'practice'})">▶ Practice</button>
+      </div>
+      ${studyContent}
+    </div>`);
+}
+
+function renderStudy() {
+  const lesson = LESSONS[state.domainId];
+
+  const concepts = lesson.concepts.map(c =>
+    `<li><strong>${c.term}:</strong> ${c.detail}</li>`
+  ).join('');
+
+  const patterns = lesson.patterns.map(p =>
+    `<li>
+      <span class="trigger">When asked: <em>${p.trigger}</em></span><br>
+      → <span class="answer">${p.answer}</span><br>
+      <span style="color:var(--text-muted);font-size:12.5px">Because: ${p.reason}</span>
+    </li>`
+  ).join('');
+
+  const refs = lesson.refs.map(r =>
+    `<div class="ref-item">${r}</div>`
+  ).join('');
+
+  const count = ALL_QUESTIONS.filter(q => q.domain === state.domainId).length;
+
+  return `
+    <div class="lesson-section">
+      <h3>📚 Key Concepts</h3>
+      <ul class="concept-list">${concepts}</ul>
+    </div>
+    <div class="lesson-section">
+      <h3>💡 Key Patterns (Exam Tips)</h3>
+      <ul class="pattern-list">${patterns}</ul>
+    </div>
+    <div class="lesson-section">
+      <h3>⚡ Quick Reference</h3>
+      <div class="ref-grid">${refs}</div>
+    </div>
+    <div class="lesson-start-btn">
+      <button class="btn btn-primary" onclick="startQuiz(${state.domainId})" style="width:100%;padding:14px;font-size:15px">
+        Ready? Start ${count}-Question Practice →
+      </button>
+    </div>`;
+}
+
+function renderPracticeTab(d, count) {
+  return `
+    <div style="text-align:center;padding:48px 0;color:var(--text-muted)">
+      <p style="font-size:17px;margin-bottom:16px">${count} questions in this domain</p>
+      <button class="btn btn-primary" onclick="startQuiz(${d.id})" style="padding:14px 28px;font-size:15px">
+        Start Practice →
+      </button>
+    </div>`;
+}
+
 // ── INIT ───────────────────────────────────────────────────────────────────
 render();
 </script>
