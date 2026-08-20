@@ -520,6 +520,110 @@ const LESSONS = {
     ],
   },
 };
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+const state = {
+  screen: 'home',       // 'home' | 'domain' | 'quiz' | 'results'
+  domainId: null,       // 1-5 for domain screens; null for full mock
+  view: 'study',        // 'study' | 'practice' (domain screen tabs)
+  // Quiz state
+  questions: [],        // active question list (shuffled)
+  current: 0,
+  answers: [],          // {selected:[], correct:bool} per question
+  // Results
+  score: 0,
+};
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function el(id) { return document.getElementById(id); }
+
+function setScreen(html) { el('app').innerHTML = html; }
+
+function navigate(screen, params = {}) {
+  Object.assign(state, { screen, ...params });
+  render();
+}
+
+function render() {
+  switch (state.screen) {
+    case 'home':    renderHome();           break;
+    case 'domain':  renderDomain();         break;
+    case 'quiz':    renderQuiz();           break;
+    case 'results': renderResults();        break;
+  }
+}
+
+function renderHome() {
+  const cards = DOMAINS.map(d => {
+    const count = ALL_QUESTIONS.filter(q => q.domain === d.id).length;
+    return `
+    <div class="domain-card">
+      <div class="domain-num">Domain ${d.id} · ${d.pct}% of exam</div>
+      <h3>${d.name}</h3>
+      <p class="domain-meta">${count} questions · ${d.desc}</p>
+      <div class="card-actions">
+        <button class="btn btn-ghost" onclick="navigate('domain',{domainId:${d.id},view:'study'})">📖 Study</button>
+        <button class="btn btn-primary" onclick="startQuiz(${d.id})">▶ Practice</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  setScreen(`
+    <div class="header">
+      <div class="header-left">
+        <span class="badge">GPSOE</span>
+        <h1>Exam Reviewer</h1>
+      </div>
+    </div>
+    <div class="home-body">
+      <div class="home-hero">
+        <h2>Google Professional Security Operations Engineer</h2>
+        <p>Study by domain, then test yourself. All ${ALL_QUESTIONS.length} official practice questions organized by exam domain.</p>
+      </div>
+      <div class="domain-grid">${cards}</div>
+      <div class="mock-banner">
+        <div>
+          <h3>Full Mock Exam</h3>
+          <p>All ${ALL_QUESTIONS.length} questions in random order · Timed · Simulates real exam conditions</p>
+        </div>
+        <button class="btn btn-green" onclick="startQuiz(null)">Start Full Exam →</button>
+      </div>
+    </div>`);
+}
+
+function prepareQuestions(domainId) {
+  const pool = domainId
+    ? ALL_QUESTIONS.filter(q => q.domain === domainId)
+    : [...ALL_QUESTIONS];
+  return shuffle(pool).map(q => {
+    const indices = q.opts.map((_, i) => i);
+    const shuffled = shuffle(indices);
+    return { ...q, opts: shuffled.map(i => q.opts[i]), ans: q.ans.map(a => shuffled.indexOf(a)) };
+  });
+}
+
+function startQuiz(domainId) {
+  const questions = prepareQuestions(domainId);
+  navigate('quiz', {
+    domainId,
+    questions,
+    current: 0,
+    answers: new Array(questions.length).fill(null).map(() => ({ selected: [], submitted: false, correct: false })),
+    score: 0,
+  });
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────────
+render();
 </script>
 </body>
 </html>
